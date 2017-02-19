@@ -1,5 +1,10 @@
 import org.apache.http.impl.client.HttpClients
-import org.jtwig.plugins.travis.TriggerBuildRequest
+import org.jtwig.plugins.bintray.http.BintrayHttpClient
+import org.jtwig.plugins.bintray.http.BintrayHttpClientFactory
+import org.jtwig.plugins.bintray.http.auth.BintrayAuthentication
+import org.jtwig.plugins.master.CheckVersionReleasedService
+import org.jtwig.plugins.master.GetProjectDependenciesService
+import org.jtwig.plugins.master.ResolveProjectDependenciesService
 import org.jtwig.plugins.travis.TriggerBuildService
 import org.jtwig.plugins.travis.TriggerBuilderBodyService
 
@@ -26,16 +31,17 @@ buildscript {
     }
 
     dependencies {
-        classpath 'org.jtwig:jtwig-release-plugin:1.+'
+        classpath 'org.jtwig:jtwig-release-plugin:1.9'
     }
 }
 
 release {
     version = System.getenv("TRAVIS_TAG")
-    versionProperty = "JTWIG_VERSION"
     token = System.getenv("TRAVIS_TOKEN")
+    bintrayUser = System.getenv("BINTRAY_USER")
+    bintrayApiKey = System.getenv("BINTRAY_KEY")
     projects = [
-            "jtwig/jtwig-reflection"
+            "jtwig-example-release-plugin"
     ]
 }
 
@@ -43,35 +49,72 @@ class ReleasePlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         project.extensions.create("release", ReleaseExtension)
-
         project.task("release").doFirst({
+            BintrayHttpClient client = BintrayHttpClientFactory.create(project.extensions.release.bintrayBaseUrl, new BintrayAuthentication(
+                    project.extensions.release.bintrayUser,
+                    project.extensions.release.bintrayApiKey
+            ));
 
-            TriggerBuildService service = new TriggerBuildService(
-                    HttpClients.createDefault(),
-                    new TriggerBuilderBodyService(
-                            project.extensions.release.versionProperty,
-                            project.extensions.release.version
-                    )
+            ReleaseProcessService releaseProcessService = new ReleaseProcessService(
+                    project.extensions.release.baseUrl,
+                    project.extensions.release.token,
+                    new ResolveProjectDependenciesService(new GetProjectDependenciesService(project.extensions.release.githubRawBaseUrl)),
+                    new CheckVersionReleasedService(project.extensions.release.bintrayBaseUrl, client),
+                    new TriggerBuildService(HttpClients.createDefault(), new TriggerBuilderBodyService("JTWIG_VERSION", project.extensions.release.version))
             );
 
-            String accessToken = project.extensions.release.token;
-            for (String projectPath : project.extensions.release.projects) {
-                service.trigger(new TriggerBuildRequest(
-                        project.name,
-                        project.extensions.release.baseUrl,
-                        projectPath,
-                        accessToken,
-                        "master"
-                ))
-            }
+            releaseProcessService.release(project.extensions.release.projects, project.extensions.release.version);
         })
     }
 }
 
+class ReleaseProcessService {
+    private final String travisBaseUrl;
+    private final String travisToken;
+    private final ResolveProjectDependenciesService resolveProjectDependenciesService;
+    private final CheckVersionReleasedService projectVersionReleased;
+    private final TriggerBuildService triggerBuildService;
+
+    public ReleaseProcessService(String travisBaseUrl, String travisToken, ResolveProjectDependenciesService resolveProjectDependenciesService, CheckVersionReleasedService projectVersionReleased, TriggerBuildService triggerBuildService) {
+        this.travisBaseUrl = travisBaseUrl;
+        this.travisToken = travisToken;
+        this.resolveProjectDependenciesService = resolveProjectDependenciesService;
+        this.projectVersionReleased = projectVersionReleased;
+        this.triggerBuildService = triggerBuildService;
+    }
+
+    public void release(List<String> projects, String version) {
+        List<String> ordered = resolveProjectDependenciesService.resolveDependencies(projects);
+
+        for (String project : ordered) {
+            println String.format("Triggering release of project %s", project);
+            triggerBuildService.trigger(travisBaseUrl, travisToken, "jtwig/" + project, version);
+            waitForRelease(project, version);
+        }
+    }
+
+    private void waitForRelease(String project, String version) {
+        println String.format("Waiting for project %s to be released with version %s", project, version);
+        boolean released = false;
+
+        while (!released) {
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            released = projectVersionReleased.released(project, version);
+        }
+    }
+}
+
 class ReleaseExtension {
-    String versionProperty
     String version
     String token
+    String bintrayUser
+    String bintrayApiKey
     String baseUrl = "https://api.travis-ci.org"
+    String githubRawBaseUrl = "https://raw.githubusercontent.com"
+    String bintrayBaseUrl = "https://bintray.com/api/v1"
     List<String> projects = []
 }
