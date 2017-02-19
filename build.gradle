@@ -31,7 +31,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'org.jtwig:jtwig-release-plugin:1.9'
+        classpath 'org.jtwig:jtwig-release-plugin:1.10'
     }
 }
 
@@ -41,7 +41,23 @@ release {
     bintrayUser = System.getenv("BINTRAY_USER")
     bintrayApiKey = System.getenv("BINTRAY_KEY")
     projects = [
-            "jtwig-example-release-plugin"
+            "jtwig-cache-extension",
+            "jtwig-highlight-extension",
+            "jtwig-hot-reloading-extension",
+            "jtwig-json-extension",
+            "jtwig-spaceless-extension",
+            "jtwig-spring-translate-extension",
+            "jtwig-xliff",
+            "jtwig-render-extension",
+            "jtwig-spring-asset-extension",
+            "jtwig-translate-extension",
+            "jtwig-spring-csrf-extension",
+            "jtwig-spring-boot-starter",
+            "jtwig-spring",
+            "jtwig-web",
+            "jtwig-pluralization",
+            "jtwig-core",
+            "jtwig-reflection"
     ]
 }
 
@@ -58,7 +74,9 @@ class ReleasePlugin implements Plugin<Project> {
             ReleaseProcessService releaseProcessService = new ReleaseProcessService(
                     project.extensions.release.baseUrl,
                     project.extensions.release.token,
-                    new ResolveProjectDependenciesService(new GetProjectDependenciesService(project.extensions.release.githubRawBaseUrl)),
+                    new ResolveProjectDependenciesService(new GetProjectDependenciesService(project.extensions.release.githubRawBaseUrl, Arrays.asList(
+                            "jtwig-release-plugin"
+                    ))),
                     new CheckVersionReleasedService(project.extensions.release.bintrayBaseUrl, client),
                     new TriggerBuildService(HttpClients.createDefault(), new TriggerBuilderBodyService("JTWIG_VERSION", project.extensions.release.version))
             );
