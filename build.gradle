@@ -1,0 +1,78 @@
+import org.apache.http.impl.client.HttpClients
+import org.jtwig.plugins.travis.TriggerBuildRequest
+import org.jtwig.plugins.travis.TriggerBuildService
+import org.jtwig.plugins.travis.TriggerBuilderBodyService
+
+group 'org.jtwig'
+version '1.0'
+
+apply plugin: 'java'
+apply plugin: ReleasePlugin
+
+sourceCompatibility = 1.7
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven {
+            url "https://dl.bintray.com/jtwig/maven"
+        }
+    }
+
+    dependencies {
+        classpath 'org.jtwig:jtwig-release-plugin:1.+'
+    }
+}
+
+release {
+    version = System.getenv("TRAVIS_TAG")
+    versionProperty = "JTWIG_VERSION"
+    token = System.getenv("TRAVIS_TOKEN")
+    projects = [
+            "jtwig/jtwig-example-release-plugin"
+    ]
+}
+
+
+class ReleasePlugin implements Plugin<Project> {
+    @Override
+    void apply(Project project) {
+        project.extensions.create("release", ReleaseExtension)
+
+        project.task("release").doFirst({
+
+            TriggerBuildService service = new TriggerBuildService(
+                    HttpClients.createDefault(),
+                    new TriggerBuilderBodyService(
+                            project.extensions.release.versionProperty,
+                            project.extensions.release.version
+                    )
+            );
+
+            String accessToken = project.extensions.release.token;
+            for (String projectPath : project.extensions.release.projects) {
+                service.trigger(new TriggerBuildRequest(
+                        project.name,
+                        project.extensions.release.baseUrl,
+                        projectPath,
+                        accessToken,
+                        "master"
+                ))
+            }
+        })
+    }
+}
+
+class ReleaseExtension {
+    String versionProperty
+    String version
+    String token
+    String baseUrl = "https://api.travis-ci.org"
+    List<String> projects = []
+}
