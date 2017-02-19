@@ -31,7 +31,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'org.jtwig:jtwig-release-plugin:1.10'
+        classpath 'org.jtwig:jtwig-release-plugin:1.+'
     }
 }
 
