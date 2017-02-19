@@ -35,7 +35,7 @@ release {
     versionProperty = "JTWIG_VERSION"
     token = System.getenv("TRAVIS_TOKEN")
     projects = [
-            "jtwig/jtwig-example-release-plugin"
+            "jtwig/jtwig-reflection"
     ]
 }
 
