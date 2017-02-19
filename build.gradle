@@ -39,7 +39,6 @@ release {
     ]
 }
 
-
 class ReleasePlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
