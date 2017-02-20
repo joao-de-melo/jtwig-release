@@ -67,6 +67,7 @@ class ReleasePlugin implements Plugin<Project> {
     void apply(Project project) {
         project.extensions.create("release", ReleaseExtension)
         project.task("release").doFirst({
+            TriggerBuildService triggerBuildService = new TriggerBuildService(HttpClients.createDefault());
             ReleaseProcessService releaseProcessService = new ReleaseProcessService(
                     project.extensions.release.baseUrl,
                     project.extensions.release.token,
@@ -74,10 +75,13 @@ class ReleasePlugin implements Plugin<Project> {
                             "jtwig-release-plugin"
                     ))),
                     new CheckVersionReleasedService(project.extensions.release.bintrayBaseUrl, HttpClients.createDefault()),
-                    new TriggerBuildService(HttpClients.createDefault())
+                    triggerBuildService
             );
 
             releaseProcessService.release(project.extensions.release.projects, project.extensions.release.version);
+
+            // trigger jtwig-examples build
+            triggerBuildService.trigger(project.extensions.release.baseUrl, project.extensions.release.token, "jtwig/jtwig-examples", project.extensions.release.version)
         })
     }
 }
