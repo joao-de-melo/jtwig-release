@@ -105,9 +105,11 @@ class ReleaseProcessService {
         List<String> ordered = resolveProjectDependenciesService.resolveDependencies(projects);
 
         for (String project : ordered) {
-            println String.format("Triggering release of project %s", project);
-            triggerBuildService.trigger(travisBaseUrl, travisToken, "jtwig/" + project, version);
-            waitForRelease(project, version);
+            if (!projectVersionReleased.released(project, version)) {
+                println String.format("Triggering release of project %s", project);
+                triggerBuildService.trigger(travisBaseUrl, travisToken, "jtwig/" + project, version);
+                waitForRelease(project, version);
+            }
         }
     }
 
