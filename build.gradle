@@ -67,11 +67,6 @@ class ReleasePlugin implements Plugin<Project> {
     void apply(Project project) {
         project.extensions.create("release", ReleaseExtension)
         project.task("release").doFirst({
-//            BintrayHttpClient client = BintrayHttpClientFactory.create(project.extensions.release.bintrayBaseUrl, new BintrayAuthentication(
-//                    project.extensions.release.bintrayUser,
-//                    project.extensions.release.bintrayApiKey
-//            ));
-
             ReleaseProcessService releaseProcessService = new ReleaseProcessService(
                     project.extensions.release.baseUrl,
                     project.extensions.release.token,
